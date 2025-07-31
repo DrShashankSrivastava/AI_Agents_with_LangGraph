@@ -99,3 +99,38 @@ Use the retriever tool available to answer questions about the topics covered in
 If you need to look up some information before asking a follow up question, you are allowed to do that.
 Please always cite the specific parts of th documents you use in your answers.  
 """
+
+# Tool dictionary
+tools_dict = {our_tool.name: our_tool for our_tool in tools}
+
+# LLM Agent
+def call_llm(state: AgentState) -> AgentState:
+    """Function to call the LLM with the current state"""
+
+    messages = list(state["messages"])
+    messages = [SystemMessage(content=system_prompt)] + messages
+    message = llm.invoke(messages)
+
+    return {'messages': [message]}
+
+# Retriever Agent
+def take_action(state: AgentState) -> AgentState:
+    """Execute tool calls from the LLM's response"""
+
+    tool_calls = state["messages"][-1].tool_calls
+    results = []
+    for t in tool_calls:
+        print(f"Calling Tool: {t['name']} with query: {t['args'].get('query', 'No query provided')}")
+
+        if not t['name'] in tools_dict:
+            print(f"\nTool: {t['name']} does not exist.")
+            result = "Incorrect Tool Name. Please Retry and Select tool from the List of Available tools."
+        else:
+            result = tools_dict[t['name']].invoke(t['args'].get('query', ''))
+            print(f"Result length: {len(str(result))}")
+
+        # Append the Tool Message
+        results.append(ToolMessage(tool_call_id=t['id'], name=t['name'], content=str(result)))
+
+    print("Tools Execution Complete. Back to the model!")
+    return {'messages': results}
