@@ -134,3 +134,31 @@ def take_action(state: AgentState) -> AgentState:
 
     print("Tools Execution Complete. Back to the model!")
     return {'messages': results}
+
+# Define Graph
+graph = StateGraph(AgentState)
+graph.add_node("LLM", call_llm)
+graph.add_node("Retriever_Agent", take_action)
+graph.add_edge(START, call_llm)
+graph.add_conditional_edges(
+    "LLM",
+    should_continue,
+    {True: "Retriever_Agent",
+     False: END}
+)
+graph.add_edge("Retriever_Agent", "LLM")
+rag_agent = graph.compile()
+
+# Define and run Running Agent
+def running_agent():
+    print("\n==== RAG AGENT ====")
+    while True:
+        user_input = input("\nPlease enter your question: ")
+        if user_input.lower() in ['exit', 'quit']:
+            break
+        messages = [HumanMessage(content=user_input)]
+        result = rag_agent.invoke({"messages": messages})
+        print("\n==== ANSWER ====")
+        print(result['messages'][-1].content)
+
+running_agent()
